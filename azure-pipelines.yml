@@ -78,7 +78,6 @@ jobs:
       script: |
         tree "d:\" /F /A
         pwd
-        mkdir "$(Build.SourcesDirectory)/buildWrapperOutputDirectory"
 
   - task: CopyFiles@2
     inputs:
