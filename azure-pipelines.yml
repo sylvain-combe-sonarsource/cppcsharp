@@ -43,7 +43,7 @@ jobs:
         # Put one key=value per line, example:
         # sonar.exclusions=**/*.bin
         sonar.verbose=true
-        sonar.cfamily.build-wrapper-output=buildWrapperOutputDirectory
+        sonar.cfamily.build-wrapper-output=.\buildWrapperOutputDirectory
         sonar.sourceEncoding=UTF-8
         sonar.exclusions = **/SomeConsoleApplicationTest/**/*,
         Outputs/**/*
@@ -79,12 +79,6 @@ jobs:
         tree "d:\" /F /A
         pwd
 
-  - task: CopyFiles@2
-    inputs:
-      SourceFolder: '$(agent.builddirectory)/buildWrapperOutputDirectory'
-      Contents: '**'
-      TargetFolder: '$(Build.SourcesDirectory)/buildWrapperOutputDirectory'
-
   - task: CmdLine@2
     displayName: 'list d:'
     condition: always()
@@ -92,6 +86,15 @@ jobs:
     inputs:
       script: |
         tree "d:\" /F /A
+        pwd
+
+  - task: CmdLine@2
+    displayName: 'dump json'
+    condition: always()
+    enabled: true
+    inputs:
+      script: |
+        cat ".\buildWrapperOutputDirectory\build-wrapper-dump.json"
 
   - task: SonarQubeAnalyze@4
 
