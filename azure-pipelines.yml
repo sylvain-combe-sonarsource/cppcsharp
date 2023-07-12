@@ -25,7 +25,8 @@ jobs:
   - task: SonarCloudPrepare@1
     inputs:
       SonarCloud: 'SonarCloudSylvain'
-      organization: 'sylvain-combe-sonarsource'      scannerMode: 'MSBuild'
+      organization: 'sylvain-combe-sonarsource'      
+      scannerMode: 'MSBuild'
       projectKey: 'cppcsharp'
       projectName: 'cppcsharp'
       projectVersion: '1.0'
