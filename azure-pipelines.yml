@@ -88,5 +88,8 @@ jobs:
       script: |
         cat ".\buildWrapperOutputDirectory\build-wrapper-dump.json"
 
-  - task: SonarQubeAnalyze@4
+
+  - task: SonarQubeAnalyze@5
+    inputs:
+      jdkversion: 'JAVA_HOME_11_X64'
 
