@@ -1,0 +1,71 @@
+# .NET Desktop
+# Build and run tests for .NET Desktop or Windows classic desktop solutions.
+# Add steps that publish symbols, save build artifacts, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/apps/windows/dot-net
+
+trigger:
+- none
+
+pool:
+  vmImage: 'windows-latest'
+
+parameters:
+- name: ProjectVersion
+  type: string
+  default: '1.0'
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+  projectSourceDir: 'sonarqube-scanner-msbuild'
+
+steps:
+#- checkout: self
+#  fetchDepth: 0
+
+- task: NuGetToolInstaller@1
+
+- task: CmdLine@2
+  displayName: 'list dir & env'
+  enabled: true
+  inputs:
+    script: |
+      tree "$(Build.SourcesDirectory)" /F /A
+      set
+  continueOnError: true
+
+- task: NuGetCommand@2
+  inputs:
+    restoreSolution: '$(solution)'
+
+- task: SonarCloudPrepare@1
+  inputs:
+    SonarCloud: 'SonarCloud'
+    organization: 'st-sonarcloud-examples'
+    scannerMode: 'MSBuild'
+    projectKey: 'SWTITOPS_SonarExamples'
+    projectName: 'SonarExamples'
+    projectVersion: '${{ parameters.ProjectVersion }}'
+    extraProperties: >
+      sonar.exclusions = 
+      $(projectSourceDir)/**/SomeConsoleApplicationTest/**/*,
+      $(projectSourceDir)/Outputs/**/*
+
+      sonar.test.exclusions = $(projectSourceDir)/**/*
+      
+
+#sonar.tests = $(projectSourceDir)/CSharpProject/
+#sonar.test.inclusions = $(projectSourceDir)/CSharpProject/SomeConsoleApplicationTest/**/*
+
+- task: VSBuild@1
+  inputs:
+    solution: '**/SomeConsoleApplication.sln'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+
+- task: SonarCloudAnalyze@1
+- task: VSTest@2
+  inputs:
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'

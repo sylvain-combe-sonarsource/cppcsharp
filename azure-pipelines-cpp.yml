@@ -1,0 +1,386 @@
+trigger: none
+
+parameters:
+# SonarCloud analyzis manual launch
+- name: LaunchSonarCSharp
+  type: boolean
+  default: false
+- name: LaunchSonarCSharpWithProjectName
+  type: boolean
+  default: false
+- name: LaunchSonarCSharpBuildWrapper
+  type: boolean
+  default: false
+- name: LaunchSonarCSharpBuildWrapperSonarCloudExtentsion
+  type: boolean
+  default: false
+- name: LaunchSonarCppCSharp
+  type: boolean
+  default: true
+
+jobs:
+- job: BuildSonarCSharp
+  displayName: Build CSharp with SonarCloud extension
+  condition: and(succeeded(), eq('${{ parameters.LaunchSonarCSharp}}', true))
+
+  pool:
+    vmImage: 'windows-latest'
+  variables:
+    SonarCloud_Build_Wrapper_url: https://sonarcloud.io/static/cpp/build-wrapper-win-x86.zip
+    SonarCloud_Net46_Build_Wrapper_url: https://github.com/SonarSource/sonar-scanner-msbuild/releases/download/5.8.0.52797/sonar-scanner-msbuild-5.8.0.52797-net46.zip
+    SonarCloud_Net5_Build_Wrapper_url:  https://github.com/SonarSource/sonar-scanner-msbuild/releases/download/5.8.0.52797/sonar-scanner-msbuild-5.8.0.52797-net5.0.zip
+    solution: '**/*.sln'
+    buildPlatform: 'Any CPU'
+    buildConfiguration: 'Release'
+    projectSourceDir: 'sonarqube-scanner-msbuild'
+    cmd_msbuild: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\MSBuild\\Current\\Bin\\msbuild.exe"
+    ${{ if startsWith(variables['Build.SourceBranch'], 'refs/heads/') }}:
+      branchName: $[ replace(variables['Build.SourceBranch'], 'refs/heads/', '') ]
+    ${{ if startsWith(variables['Build.SourceBranch'], 'refs/pull/') }}:
+      branchName: $[ replace(variables['System.PullRequest.SourceBranch'], 'refs/heads/', '') ]
+
+  steps:
+  - task: PowerShell@2
+    displayName: "Use JDK11 by default"
+    inputs:
+      targetType: 'inline'
+      script: |
+        $jdkPath = $env:JAVA_HOME_11_X64
+        Write-Host "##vso[task.setvariable variable=JAVA_HOME]$jdkPath"
+
+  - task: SonarCloudPrepare@1
+    displayName: SonarCloud prepare for C#
+    condition: and(succeeded(), eq('${{ parameters.LaunchSonarCSharp}}', true))
+    enabled: true
+    inputs:
+      SonarCloud: 'SonarCloud'
+      organization: 'st-sonarcloud-examples'
+      scannerMode: 'MSBuild'
+      projectKey: 'st-sonarcloud-examples_SonarExamples_CSharp'
+      projectName: 'st-sonarcloud-examples_SonarExamples_CSharp'
+      #projectVersion: '${{ parameters.ProjectVersion }}'
+      extraProperties: >
+        sonar.verbose=true
+
+        sonar.c.file.suffixes=-
+
+        sonar.cpp.file.suffixes=-
+
+        sonar.objc.file.suffixes=-
+
+        sonar.exclusions = **/SomeConsoleApplicationTest/**/*,
+        **/Outputs/**/*
+
+        sonar.test.exclusions = **/*
+      
+  #sonar.tests = $(projectSourceDir)/CSharpProject/
+  #sonar.test.inclusions = $(projectSourceDir)/CSharpProject/SomeConsoleApplicationTest/**/*
+
+  - task: VSBuild@1
+    displayName: Build the solution
+    condition: and(succeeded(), eq('${{ parameters.LaunchSonarCSharp}}', true))
+    enabled: true
+    inputs:
+      solution: '**/SomeConsoleApplication.sln'
+      platform: '$(buildPlatform)'
+      configuration: '$(buildConfiguration)'
+
+- job: BuildSonarCppCSharp
+  displayName: Build mixed CSharp and Cpp with build-wrapper
+  condition: and(succeeded(), eq('${{ parameters.LaunchSonarCppCSharp}}', true))
+
+  pool:
+    vmImage: 'windows-latest'
+  variables:
+    SonarCloud_Build_Wrapper_url: https://sonarcloud.io/static/cpp/build-wrapper-win-x86.zip
+    SonarCloud_Net46_Build_Wrapper_url: https://github.com/SonarSource/sonar-scanner-msbuild/releases/download/5.8.0.52797/sonar-scanner-msbuild-5.8.0.52797-net46.zip
+    SonarCloud_Net5_Build_Wrapper_url:  https://github.com/SonarSource/sonar-scanner-msbuild/releases/download/5.8.0.52797/sonar-scanner-msbuild-5.8.0.52797-net5.0.zip
+    solution: '**/*.sln'
+    buildPlatform: 'Any CPU'
+    buildConfiguration: 'Release'
+    projectSourceDir: 'sonarqube-scanner-msbuild'
+    cmd_msbuild: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\MSBuild\\Current\\Bin\\msbuild.exe"
+    ${{ if startsWith(variables['Build.SourceBranch'], 'refs/heads/') }}:
+      branchName: $[ replace(variables['Build.SourceBranch'], 'refs/heads/', '') ]
+    ${{ if startsWith(variables['Build.SourceBranch'], 'refs/pull/') }}:
+      branchName: $[ replace(variables['System.PullRequest.SourceBranch'], 'refs/heads/', '') ]
+
+  steps:
+  - task: PowerShell@2
+    displayName: "Use JDK11 by default"
+    inputs:
+      targetType: 'inline'
+      script: |
+        $jdkPath = $env:JAVA_HOME_11_X64
+        Write-Host "##vso[task.setvariable variable=JAVA_HOME]$jdkPath"
+
+  - task: SonarCloudPrepare@1
+    displayName: SonarCloudPrepare build-wrapper
+    condition: and(succeeded(), eq('${{ parameters.LaunchSonarCppCSharp}}', true))
+    inputs:
+      SonarCloud: 'SonarCloud' # Name of the SonarCloud service connection you created
+      organization: 'st-sonarcloud-examples'
+      scannerMode: 'CLI'
+      configMode: 'manual'
+      cliProjectKey: 'SWTITOPS_SonarExamples'
+      cliProjectName: 'SonarExamples'
+      cliSources: '.\$(projectSourceDir)'
+      extraProperties: >
+        sonar.verbose=true
+
+        sonar.cfamily.build-wrapper-output=buildWrapperOutputDirectory
+
+        sonar.sourceEncoding=UTF-8
+        
+        sonar.exclusions = **/SomeConsoleApplicationTest/**/*,
+        Outputs/**/*
+
+        sonar.test.exclusions = **/*
+
+  - pwsh: |
+      curl --create-dirs -sSLo $HOME\.sonar\build-wrapper-win-x86.zip ${{variables.SonarCloud_Build_Wrapper_url}}
+      unzip -o $HOME\.sonar\build-wrapper-win-x86.zip -d $HOME\.sonar\
+    displayName: Download and install build wrapper
+    enabled: false
+    condition: and(succeeded(), eq('${{ parameters.LaunchSonarCppCSharp}}', true))
+
+  - pwsh: |
+      $path = vswhere -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | select-object -first 1
+      & "$HOME\.sonar\build-wrapper-win-x86\build-wrapper-win-x86-64.exe" --out-dir build_wrapper_output_directory $path .\CSharpProject\SomeConsoleApplication.sln /t:rebuild /nodeReuse:false
+    workingDirectory: './$(projectSourceDir)'
+    displayName: Build in build-wrapper
+    enabled: false
+    condition: and(succeeded(), eq('${{ parameters.LaunchSonarCppCSharp}}', true))
+
+  - task: PowerShell@2
+    displayName: 'Download and expand build wrapper'
+    condition: and(succeeded(), eq('${{ parameters.LaunchSonarCppCSharp}}', true))
+    enabled: true
+    inputs:
+      targetType: 'inline'
+      script: |
+        Invoke-WebRequest -Uri '$(SonarCloud_Build_Wrapper_url)' -OutFile '$(Agent.TempDirectory)\build-wrapper.zip'
+        Expand-Archive -Path '$(Agent.TempDirectory)\build-wrapper.zip' -DestinationPath '$(Agent.TempDirectory)/buildWrapper' -Force
+
+  - task: PowerShell@2
+    displayName: 'SonarCloud Build with build-wrapper'
+    condition: and(succeeded(), eq('${{ parameters.LaunchSonarCppCSharp}}', true))
+    enabled: true
+    inputs:
+      targetType: 'inline'
+      script: |
+        & '$(Agent.TempDirectory)\buildWrapper\build-wrapper-win-x86\build-wrapper-win-x86-64.exe' --out-dir buildWrapperOutputDirectory 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\msbuild.exe' '$(Agent.BuildDirectory)\s\sonarqube-scanner-msbuild\CSharpProject\SomeConsoleApplication.sln' /t:Rebuild /nodeReuse:False
+
+  - task: CmdLine@2
+    displayName: 'list d:'
+    condition: always()
+    enabled: true
+    inputs:
+      script: |
+        tree "d:\" /F /A
+        set
+
+  - task: SonarCloudAnalyze@1
+
+- job: BuildCSharpBuildWrapper
+  displayName: Build CSharp with build-wrapper
+  condition: and(succeeded(), eq('${{ parameters.LaunchSonarCSharpBuildWrapper}}', true))
+
+  pool:
+    vmImage: 'windows-latest'
+  variables:
+    SonarCloud_Build_Wrapper_url: https://sonarcloud.io/static/cpp/build-wrapper-win-x86.zip
+    SonarCloud_Net46_Build_Wrapper_url: https://github.com/SonarSource/sonar-scanner-msbuild/releases/download/5.8.0.52797/sonar-scanner-msbuild-5.8.0.52797-net46.zip
+    SonarCloud_Net5_Build_Wrapper_url:  https://github.com/SonarSource/sonar-scanner-msbuild/releases/download/5.8.0.52797/sonar-scanner-msbuild-5.8.0.52797-net5.0.zip
+    solution: '**/*.sln'
+    buildPlatform: 'Any CPU'
+    buildConfiguration: 'Release'
+    projectSourceDir: 'sonarqube-scanner-msbuild'
+    cmd_msbuild: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\MSBuild\\Current\\Bin\\msbuild.exe"
+    ${{ if startsWith(variables['Build.SourceBranch'], 'refs/heads/') }}:
+      branchName: $[ replace(variables['Build.SourceBranch'], 'refs/heads/', '') ]
+    ${{ if startsWith(variables['Build.SourceBranch'], 'refs/pull/') }}:
+      branchName: $[ replace(variables['System.PullRequest.SourceBranch'], 'refs/heads/', '') ]
+
+  steps:
+  - task: PowerShell@2
+    displayName: "Use JDK11 by default"
+    inputs:
+      targetType: 'inline'
+      script: |
+        $jdkPath = $env:JAVA_HOME_11_X64
+        Write-Host "##vso[task.setvariable variable=JAVA_HOME]$jdkPath"
+
+  - task: PowerShell@2
+    displayName: 'Download and expand .NET build wrapper'
+    enabled: true
+    inputs:
+      targetType: 'inline'
+      script: |
+        dotnet tool install --global dotnet-sonarscanner
+
+    #rem Invoke-WebRequest -Uri '$(SonarCloud_Net5_Build_Wrapper_url)' -OutFile '$(Agent.TempDirectory)\build-wrapper.zip'
+    #rem Expand-Archive -Path '$(Agent.TempDirectory)\build-wrapper.zip' -DestinationPath '$(Agent.TempDirectory)/buildWrapper' -Force
+  - task: CmdLine@2
+    displayName: 'SonarCloud C# Build with build-wrapper'
+    enabled: true
+    inputs:
+      script: |
+        echo wrapper folder: $(Agent.TempDirectory)
+        echo build branch: $(Build.SourceBranchName) with $(branchName)
+        dotnet sonarscanner begin /k:"SWTITOPS_SonarExamples" /o:"st-sonarcloud-examples" /d:sonar.login="$(EXAMPLE-TOKEN)" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.dotnet.excludeTestProjects=true /d:sonar.branch.name="$(branchname)"
+        dotnet build "$(Build.SourcesDirectory)\sonarqube-scanner-msbuild\CSharpProject\SomeConsoleApplication.sln"
+        dotnet sonarscanner end /d:sonar.login="$(EXAMPLE-TOKEN)" 
+
+  - task: SonarCloudPrepare@1
+    displayName: SonarCloudPrepare build-wrapper
+    enabled: false
+    inputs:
+      SonarCloud: 'SonarCloud' # Name of the SonarCloud service connection you created
+      organization: 'st-sonarcloud-examples'
+      scannerMode: 'CLI'
+      configMode: 'manual'
+      cliProjectKey: 'SWTITOPS_SonarExamples'
+      cliProjectName: 'SonarExamples'
+      cliSources: '.\$(projectSourceDir)'
+      extraProperties: >
+        sonar.verbose=true
+
+        sonar.sourceEncoding=UTF-8
+        
+        sonar.exclusions = **/SomeConsoleApplicationTest/**/*,
+        Outputs/**/*
+
+        sonar.test.exclusions = **/*
+
+  - task: CmdLine@2
+    displayName: 'SonarCloud C# Build with build-wrapper'
+    enabled: false
+    inputs:
+      script: |
+        "$(cmd_msbuild)" "$(Build.SourcesDirectory)\sonarqube-scanner-msbuild\CSharpProject\SomeConsoleApplication.sln"
+
+  - task: CmdLine@2
+    displayName: 'list d:'
+    condition: always()
+    enabled: true
+    inputs:
+      script: |
+        tree "d:\" /F /A
+        set
+
+  - task: SonarCloudAnalyze@1
+    enabled: false
+
+- job: BuildCSharpBuildWrapperSonarCloudExtentsion
+  displayName: Build CSharp with build-wrapper
+  condition: and(succeeded(), eq('${{ parameters.LaunchSonarCSharpBuildWrapperSonarCloudExtentsion }}', true))
+
+  pool:
+    vmImage: 'windows-latest'
+  variables:
+    buildPlatform: 'Any CPU'
+    buildConfiguration: 'Release'
+    projectSourceDir: 'sonarqube-scanner-msbuild'
+    cmd_msbuild: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\MSBuild\\Current\\Bin\\msbuild.exe"
+    ${{ if startsWith(variables['Build.SourceBranch'], 'refs/heads/') }}:
+      branchName: $[ replace(variables['Build.SourceBranch'], 'refs/heads/', '') ]
+    ${{ if startsWith(variables['Build.SourceBranch'], 'refs/pull/') }}:
+      branchName: $[ replace(variables['System.PullRequest.SourceBranch'], 'refs/heads/', '') ]
+
+  steps:
+  - task: SonarCloudPrepare@1
+    displayName: SonarCloudPrepare build-wrapper
+    enabled: true
+    inputs:
+      SonarCloud: 'SonarCloud' # Name of the SonarCloud service connection you created
+      organization: 'st-sonarcloud-examples'
+      scannerMode: 'CLI'
+      configMode: 'manual'
+      cliProjectKey: 'SWTITOPS_SonarExamples'
+      cliProjectName: 'SonarExamples'
+      cliSources: '.\$(projectSourceDir)'
+      extraProperties: >
+        sonar.verbose=true
+
+        sonar.sourceEncoding=UTF-8
+        
+        sonar.c.file.suffixes=-
+
+        sonar.cpp.file.suffixes=-
+
+        sonar.objc.file.suffixes=-
+
+        sonar.exclusions = **/SomeConsoleApplicationTest/**/*,
+        Outputs/**/*
+
+        sonar.test.exclusions = **/*
+
+  - task: CmdLine@2
+    displayName: 'SonarCloud C# Build with build-wrapper'
+    enabled: true
+    inputs:
+      script: |
+        "$(cmd_msbuild)" "$(Build.SourcesDirectory)\sonarqube-scanner-msbuild\CSharpProject\SomeConsoleApplication.sln"
+
+  - task: SonarCloudAnalyze@1
+    enabled: true
+
+- job: BuildSonarCSharpWithProjectName
+  displayName: C# Build with project name and build-wrapper
+  condition: and(succeeded(), eq('${{ parameters.LaunchSonarCSharpWithProjectName }}', true))
+
+  pool:
+    vmImage: 'windows-latest'
+  variables:
+    CsharpProjectName: st-sonarcloud-examples_SonarExamples_CSharp
+    SonarCloud_Build_Wrapper_url: https://sonarcloud.io/static/cpp/build-wrapper-win-x86.zip
+    SonarCloud_Net46_Build_Wrapper_url: https://github.com/SonarSource/sonar-scanner-msbuild/releases/download/5.8.0.52797/sonar-scanner-msbuild-5.8.0.52797-net46.zip
+    SonarCloud_Net5_Build_Wrapper_url:  https://github.com/SonarSource/sonar-scanner-msbuild/releases/download/5.8.0.52797/sonar-scanner-msbuild-5.8.0.52797-net5.0.zip
+    solution: '**/*.sln'
+    buildPlatform: 'Any CPU'
+    buildConfiguration: 'Release'
+    projectSourceDir: 'sonarqube-scanner-msbuild'
+    cmd_msbuild: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\MSBuild\\Current\\Bin\\msbuild.exe"
+    ${{ if startsWith(variables['Build.SourceBranch'], 'refs/heads/') }}:
+      branchName: $[ replace(variables['Build.SourceBranch'], 'refs/heads/', '') ]
+    ${{ if startsWith(variables['Build.SourceBranch'], 'refs/pull/') }}:
+      branchName: $[ replace(variables['System.PullRequest.SourceBranch'], 'refs/heads/', '') ]
+
+  steps:
+  - task: PowerShell@2
+    displayName: "Use JDK11 by default"
+    inputs:
+      targetType: 'inline'
+      script: |
+        $jdkPath = $env:JAVA_HOME_11_X64
+        Write-Host "##vso[task.setvariable variable=JAVA_HOME]$jdkPath"
+
+  - task: PowerShell@2
+    displayName: 'Download and expand .NET build wrapper'
+    enabled: true
+    inputs:
+      targetType: 'inline'
+      script: |
+        dotnet tool install --global dotnet-sonarscanner
+
+  - task: CmdLine@2
+    displayName: 'SonarCloud C# Build with build-wrapper'
+    enabled: true
+    inputs:
+      script: |
+        echo wrapper folder: $(Agent.TempDirectory)
+        echo build branch: $(Build.SourceBranchName) with $(branchName)
+        dotnet sonarscanner begin /k:"SWTITOPS_SonarExamples" /o:"st-sonarcloud-examples" /n:"st-sonarcloud-examples_SonarExamples_CSharp" /d:sonar.login="$(EXAMPLE-TOKEN)" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.dotnet.excludeTestProjects=true /d:sonar.branch.name="$(branchname)"
+        dotnet build "$(Build.SourcesDirectory)\sonarqube-scanner-msbuild\CSharpProject\SomeConsoleApplication.sln"
+        dotnet sonarscanner end /d:sonar.login="$(EXAMPLE-TOKEN)" 
+
+  - task: CmdLine@2
+    displayName: 'list d:'
+    condition: always()
+    enabled: true
+    inputs:
+      script: |
+        tree "d:\" /F /A
+        set
+
