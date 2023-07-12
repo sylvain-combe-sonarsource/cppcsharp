@@ -79,14 +79,6 @@ jobs:
         tree "d:\" /F /A
         pwd
 
-  - task: CmdLine@2
-    displayName: 'list d:'
-    condition: always()
-    enabled: true
-    inputs:
-      script: |
-        tree "d:\" /F /A
-        pwd
 
   - task: CmdLine@2
     displayName: 'dump json'
