@@ -43,7 +43,7 @@ jobs:
         # Put one key=value per line, example:
         # sonar.exclusions=**/*.bin
         sonar.verbose=true
-        sonar.cfamily.build-wrapper-output=.\buildWrapperOutputDirectory
+        sonar.cfamily.build-wrapper-output=s\buildWrapperOutputDirectory
         sonar.sourceEncoding=UTF-8
         sonar.exclusions = **/SomeConsoleApplicationTest/**/*,
         Outputs/**/*
