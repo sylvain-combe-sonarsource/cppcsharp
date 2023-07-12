@@ -22,19 +22,10 @@ jobs:
  #     branchName: $[ replace(variables['System.PullRequest.SourceBranch'], 'refs/heads/', '') ]
 
   steps:
-  - task: PowerShell@2
-    displayName: "Use JDK11 by default"
+  - task: SonarCloudPrepare@1
     inputs:
-      targetType: 'inline'
-      script: |
-        $jdkPath = $env:JAVA_HOME_11_X64
-        Write-Host "##vso[task.setvariable variable=JAVA_HOME]$jdkPath"
-
-
-  - task: SonarQubePrepare@5
-    inputs:
-      SonarQube: 'SYCOLATEST'
-      scannerMode: 'MSBuild'
+      SonarCloud: 'SonarCloudSylvain'
+      organization: 'sylvain-combe-sonarsource'      scannerMode: 'MSBuild'
       projectKey: 'cppcsharp'
       projectName: 'cppcsharp'
       projectVersion: '1.0'
@@ -88,8 +79,8 @@ jobs:
       script: |
         cat ".\buildWrapperOutputDirectory\build-wrapper-dump.json"
 
-
-  - task: SonarQubeAnalyze@5
+  - task: SonarCloudAnalyze@1
     inputs:
-      jdkversion: 'JAVA_HOME_11_X64'
+      jdkversion: 'JAVA_HOME_17_X64'
+
 
