@@ -69,6 +69,7 @@ jobs:
       script: |
         & '$(Agent.TempDirectory)\buildWrapper\build-wrapper-win-x86\build-wrapper-win-x86-64.exe' --out-dir buildWrapperOutputDirectory 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\msbuild.exe' '$(Agent.BuildDirectory)\s\sonarqube-scanner-msbuild\CSharpProject\SomeConsoleApplication.sln' /t:Rebuild /nodeReuse:False
 
+
   - task: CmdLine@2
     displayName: 'list d:'
     condition: always()
@@ -76,6 +77,22 @@ jobs:
     inputs:
       script: |
         tree "d:\" /F /A
-        set
+        pwd
+        mkdir "$(Build.SourcesDirectory)/buildWrapperOutputDirectory"
+
+  - task: CopyFiles@2
+    inputs:
+      SourceFolder: '$(agent.builddirectory)/buildWrapperOutputDirectory'
+      Contents: '**'
+      TargetFolder: '$(Build.SourcesDirectory)/buildWrapperOutputDirectory'
+
+  - task: CmdLine@2
+    displayName: 'list d:'
+    condition: always()
+    enabled: true
+    inputs:
+      script: |
+        tree "d:\" /F /A
+
   - task: SonarQubeAnalyze@4
 
